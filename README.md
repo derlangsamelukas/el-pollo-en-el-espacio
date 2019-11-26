@@ -6,10 +6,13 @@ One try of my homepage
 + chicken eggs:
   + spiffy
   + spock
+  + sxml-serializer
 + GNU make
 + ssl certificate
 
 ## Installation
+
+`$ mkdir certs`
 
 `$ cp <path to your public ssl cert> ./certs/cert.pem`
 
