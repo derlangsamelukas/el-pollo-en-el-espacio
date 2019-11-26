@@ -1,0 +1,87 @@
+@font-face
+{
+    font-family: Ro;
+    src: url(fonts/Roboto-Light.ttf);
+}
+
+body
+{
+    margin: 0;
+}
+
+button::-moz-focus-inner
+{
+    border: none;
+}
+
+#app
+{
+    background-color: #B5CECC;
+    font-family: Ro;
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 400px 1fr;
+    grid-template-rows: 1fr 400px 1fr;
+    grid-template-areas:
+        ". headline ."
+        ". form ."
+        ". . .";
+}
+
+.headline
+{
+    grid-area: headline;
+    font-size: 20px;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 20px;
+}
+
+.form
+{
+    grid-area: form;
+    border-radius: 2px;
+    display: flex;
+    flex-direction: column;
+}
+
+.form .inner
+{
+    background-color: #FFFFFF;
+    box-sizing: border-box;
+    padding: 20px;
+    border-radius: 2px;
+    box-shadow: 2px 2px 5px #5C5C5C5C;
+    /* box-shadow: 0 0 2px #15AAA1; */
+}
+
+.form input
+{
+    width: 100%;
+    border-radius: 0;
+    border: none;
+    margin-bottom: 10px;
+    padding: 8px 20px;
+    box-sizing: border-box;
+    background-color: #dddddd;
+}
+
+.form button
+{
+    width: 100%;
+    background-color: #3367d6;
+    border: none;
+    border-radius: 2px;
+    box-sizing: border-box;
+    padding: 10px;
+    cursor: pointer;
+    color: #FFFFFF;
+}
+
+.form .error-message
+{
+    text-align: center;
+    margin-top: 10px;
+    color: #E5636D;
+}
