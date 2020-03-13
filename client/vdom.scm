@@ -47,67 +47,111 @@
 
 (define create-node-from-attrs
   (lambda (attrs dispatch)
-    (let ((node (create-node (symbol->string (car attrs)))))
-      (jset! "on" node (%))
-      (check-attrs node '() (cdr attrs) dispatch)
-      node)))
+    (if (string? attrs)
+        (create-text-node attrs)
+        (let ((node (create-node (symbol->string (car attrs)))))
+          (jset! "on" node (%))
+          (apply-changes node '() (cdr attrs) dispatch)
+          node))))
 
 (define assoc-list
   (lambda (key lst)
     (cdr (or (assoc key lst) '(#f)))))
 
-(define check-attrs
-  (lambda (node old-attrs new-attrs dispatch)
-    (let ((remove-specials (lambda (lst) (remove-if (lambda (attr) (assoc (car attr) '((children) (on) (text)))) lst))))
-      (let ((children-new (assoc-list 'children new-attrs))
-            (children-old (assoc-list 'children old-attrs))
-            (on-new (assoc-list 'on new-attrs))
-            (on-old (assoc-list 'on old-attrs))
-            (text-new (assoc-list 'text new-attrs))
-            (text-old (assoc-list 'text old-attrs))
-            (new-attrs (remove-specials new-attrs))
-            (old-attrs (remove-specials old-attrs)))
-        (letrec ((map-attrs
-                  (lambda (new-attrs attr-to-remove)
-                    (if (equal? new-attrs '())
-                        (map (lambda (attr) (remove-attr! node (symbol->string (car attr)))) attr-to-remove)
-                        (unless (and (assoc (caar new-attrs) old-attrs)
-                                     (equal? (car new-attrs) (assoc (caar new-attrs) old-attrs)))
-                          (if (assoc (caar new-attrs) '((type) (value) (href)))
-                              ((native (%property-ref set (%host-ref Reflect))) node (jstring (symbol->string (caar new-attrs))) (jstring (cadar new-attrs)))
-                              (attr-set! node (symbol->string (caar new-attrs)) (jstring (cadar new-attrs))))
-                          (map-attrs (cdr new-attrs)
-                                     (remove-if (lambda (attr) (equal? (caar new-attrs) (car attr))) attr-to-remove)))))))
-          (map-attrs new-attrs old-attrs)
-          (map-on-handlers node on-new on-old dispatch)
-          ;; check children
-          (if (>= (length children-new) (length children-old))
-              (begin (map (lambda (old new index)
-                            (map-tree (vector-ref (%property-ref children node) index) node old new dispatch))
-                          children-old children-new (range 0 (length children-old)))
-                     (map (lambda (attr)
-                            (append-child node (create-node-from-attrs attr dispatch)))
-                          (nth-cdr (length children-old) children-new)))
-              (begin ;; (print children-new)
-                     ;; (print children-old)
-                     (map (lambda (new old index)
-                            (map-tree (vector-ref (jref "children" node) index) node old new dispatch))
-                          children-new children-old (range 0 (length children-new)))
-                     (map (lambda (index)
-                            (remove-node (vector-ref (jref "children" node) index)))
-                          ;; (range 0 (- (length children-old) (length children-new)))
-                          (range (length children-new) (length children-old)))))
-          ;; check textContent
-          (unless (equal? text-old text-new)
-            (jset! "textContent" node (jstring (if (equal? text-new '()) "" (car text-new))))))))))
+(define (sync-handlers node old new dispatch)
+  (map-on-handlers node (assoc-list 'on new) (assoc-list 'on old) dispatch))
+
+(define (sync-attributes node old new)
+  (define (remove-specials lst)
+    (remove-if
+     (lambda (attr)
+       (assoc (car attr) '((children) (on) (text))))
+     lst))
+  (let ((new (assoc-list '@ new))
+        (old (assoc-list '@ old)))
+    (map
+     (lambda (pair)
+       (unless (equal? (assoc-list (car pair) old) (cadr pair))
+         ((js-method "setAttribute" node) (jstring (symbol->string (car pair))) (jstring (cadr pair)))))
+     new)
+    (map
+     (lambda (pair)
+       (unless (assoc (car pair) new)
+         ((js-method "removeAttribute" node) (symbol->string (car pair)))))
+     old)))
+
+(define (sync-children node old new dispatch)
+  (let ((children-new (remove-if (lambda (x) (and (list? x) (memq (car x) '(@ on)))) new))
+        (children-old(remove-if (lambda (x) (and (list? x) (memq (car x) '(@ on)))) old)))
+    (define (update-kept)
+      (map
+       (lambda (i)
+         (map-tree
+          (vector-ref (jref "childNodes" node) i)
+          node
+          (vector-ref (list->vector children-old) i)
+          (vector-ref (list->vector children-new) i)
+          dispatch))
+       (range
+        0
+        (min (length children-new)
+             (length children-old)))))
+    (define (remove-old)
+      (map
+       (lambda (i)
+         ((js-method
+           "remove"
+           (vector-ref
+            (jref "childNodes" node)
+            (+ i (length children-new))))))
+       (range
+        0
+        (- (length children-old)
+           (length children-new)))))
+    (define (add-new)
+      (map
+       (lambda (i)
+         ((js-method
+            "appendChild"
+            node)
+          (create-node-from-attrs
+           (vector-ref
+            (list->vector children-new)
+            (+ i (length children-old)))
+           dispatch)))
+       (range
+        0
+        (- (length children-new)
+           (length children-old)))))
+    (update-kept)
+    (cond
+     ((> (length children-old)
+         (length children-new))
+      (remove-old))
+     ((< (length children-old)
+         (length children-new))
+      (add-new)))))
+
+(define (apply-changes node old new dispatch)
+  (sync-attributes node old new)
+  (sync-children node old new dispatch)
+  (sync-handlers node old new dispatch))
+
+(define (replace-node node parent new dispatch)
+  (replace
+   parent
+   (create-node-from-attrs new dispatch)
+   node))
 
 (define map-tree
   (lambda (node parent old new dispatch)
     (cond
      ((equal? old new) #f)
+     ((or (string? old) (string? new))
+      (replace-node node parent new dispatch))
      ((equal? (car old) (car new))
-      (check-attrs node (cdr old) (cdr new) dispatch))
-     (#t (replace parent (create-node-from-attrs new dispatch) node)))))
+      (apply-changes node (cdr old) (cdr new) dispatch))
+     (#t (replace-node node parent new dispatch)))))
 
 (define vdom-create
   (lambda (node model render handle-event)
@@ -123,7 +167,7 @@
                   (unless (equal? model new-model)
                     (set! model new-model)
                     (update-vdom new-model))))))
-      (jset! "on" node (%))
+      ;; (jset! "on" node (%))
       (update-vdom model)
       dispatch)))
 

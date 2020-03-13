@@ -16,6 +16,11 @@
   (lambda (name)
     ((native-method document.createElement) (%host-ref document) (jstring name))))
 
+(define create-text-node
+  (lambda (string)
+    ((js-method "createTextNode" window.document)
+     (jstring string))))
+
 (define remove-node
   (lambda (node)
     ((native-method (%property-ref remove node)) node)))
