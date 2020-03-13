@@ -1,8 +1,8 @@
 .PHONY: all build run client clean
 
-i=(import (chicken port)) (import spock)
-o=with-output-to-file
-l=(lambda (files) (lambda () (map (lambda (file) (spock (symbol->string file))) files)))
+m=make-parameter
+i=define input-files
+o=define output-file
 
 all: client build
 
@@ -21,4 +21,4 @@ clean:
 	chicken-csc server/run.scm -o $@
 
 ./public/index.js: client/*.scm
-	chicken-csi -e "$i ($o \"$@\" ($l '($^)))"
+	chicken-csi -e "($i ($m '($^))) ($o ($m \"$@\")) (load \"compile.scm\")"

@@ -4,8 +4,13 @@
 (import intarweb)
 (import sxml-serializer)
 
+(define input-files (make-parameter '(client/bridge.scm client/match.scm client/run.scm client/vdom.scm)))
+(define output-file (make-parameter "public/index.js"))
+
 (define index
   (lambda (env)
+    (when (eq? env 'dev)
+      (load "compile.scm"))
     (string-append
      "<!DOCTYPE html>"
      (serialize-sxml

@@ -15,9 +15,11 @@
 (define create-node
   (lambda (name)
     ((native-method document.createElement) (%host-ref document) (jstring name))))
+
 (define remove-node
   (lambda (node)
     ((native-method (%property-ref remove node)) node)))
+
 (define replace (native-method document.replaceChild))
 
 (define attr-set!
@@ -88,9 +90,17 @@
       (%property-set! className div "title")
       div)))
 
+(define on*
+  (lambda (node name native-fn)
+    ((native-method (%property-ref addEventListener node)) node (jstring name) native-fn)))
+
 (define on
   (lambda (node name fn)
-    ((native-method (%property-ref addEventListener node)) node (jstring name) (callback fn))))
+    (on* node name (callback fn))))
+
+(define off
+  (lambda (node name native-fn)
+    ((native-method (%property-ref removeEventListener node)) node (jstring name) native-fn)))
 
 (define parent
   (lambda (node)
@@ -152,3 +162,7 @@
 (define js-method
   (lambda (method object)
     (lambda args (apply (native-method (jref (jstring method) object)) (cons object args)))))
+
+(define js-window
+  (lambda ()
+    (%host-ref window)))
