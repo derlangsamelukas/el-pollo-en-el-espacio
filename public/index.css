@@ -64,9 +64,9 @@ button::-moz-focus-inner
     /* box-shadow: 0 0 2px #15AAA1; */
 }
 
-.form input
+.field,
+input
 {
-    width: 100%;
     border-radius: 0;
     border: none;
     margin-bottom: 10px;
@@ -75,7 +75,12 @@ button::-moz-focus-inner
     background-color: #dddddd;
 }
 
-.form button
+.form input
+{
+    width: 100%;
+}
+
+button
 {
     width: 100%;
     background-color: #3367d6;
@@ -102,11 +107,65 @@ button::-moz-focus-inner
     padding: 20px;
 }
 
-.list > div
+.list > .inner
 {
     width: 100%;
     height: 100%;
     box-sizing: border-box;
     background-color: #FFFFFF;
     padding: 20px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.list > .inner > div
+{
+    flex-grow: 1;
+}
+
+.scroll
+{
+    overflow: hidden scroll;
+}
+
+.row
+{
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    box-sizing: border-box;
+}
+
+.row > .field
+{
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.row > .field:last-child
+{
+    margin-right: 0;
+}
+
+.list > .inner > h1
+{
+    margin: 0 0 10px 0;
+    text-align: center;
+}
+
+.list > .inner > .scroll
+{
+    margin-bottom: 10px;
+}
+
+.scroll button
+{
+    margin-bottom: 10px;
+}
+
+.list .item
+{
+    background-color: #FFFFFF;
+    border-bottom: 1px solid lightgray;
 }

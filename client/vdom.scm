@@ -62,22 +62,17 @@
   (map-on-handlers node (assoc-list 'on new) (assoc-list 'on old) dispatch))
 
 (define (sync-attributes node old new)
-  (define (remove-specials lst)
-    (remove-if
-     (lambda (attr)
-       (assoc (car attr) '((children) (on) (text))))
-     lst))
   (let ((new (assoc-list '@ new))
         (old (assoc-list '@ old)))
     (map
      (lambda (pair)
        (unless (equal? (assoc-list (car pair) old) (cadr pair))
-         ((js-method "setAttribute" node) (jstring (symbol->string (car pair))) (jstring (cadr pair)))))
+         ((jmethod "setAttribute" node) (jstring (symbol->string (car pair))) (jstring (cadr pair)))))
      new)
     (map
      (lambda (pair)
        (unless (assoc (car pair) new)
-         ((js-method "removeAttribute" node) (symbol->string (car pair)))))
+         ((jmethod "removeAttribute" node) (symbol->string (car pair)))))
      old)))
 
 (define (sync-children node old new dispatch)
@@ -99,11 +94,11 @@
     (define (remove-old)
       (map
        (lambda (i)
-         ((js-method
+         ((jmethod
            "remove"
            (vector-ref
             (jref "childNodes" node)
-            (+ i (length children-new))))))
+            (- (vector-length (jref "childNodes" node)) 1)))))
        (range
         0
         (- (length children-old)
@@ -111,7 +106,7 @@
     (define (add-new)
       (map
        (lambda (i)
-         ((js-method
+         ((jmethod
             "appendChild"
             node)
           (create-node-from-attrs
@@ -138,7 +133,7 @@
   (sync-handlers node old new dispatch))
 
 (define (replace-node node parent new dispatch)
-  (replace
+  (jreplace
    parent
    (create-node-from-attrs new dispatch)
    node))
@@ -159,7 +154,7 @@
              (update-vdom
               (lambda (new-model)
                 (let ((new-vdom (render new-model)))
-                  (map-tree node (parent node) vdom new-vdom dispatch)
+                  (map-tree node (jparent node) vdom new-vdom dispatch)
                   (set! vdom new-vdom))))
              (dispatch
               (lambda (event data)

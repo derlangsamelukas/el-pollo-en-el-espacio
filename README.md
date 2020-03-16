@@ -7,6 +7,7 @@ One try of my homepage
   + spiffy
   + spock
   + sxml-serializer
+  + medea
 + GNU make
 + ssl certificate
 

@@ -1,173 +1,184 @@
-(define then
-  (let ((then (native-method Promise.prototype.then)))
-    (lambda (p fn)
-      (then p (callback fn)))))
 
-(define catch
-  (let ((catch (native-method Promise.prototype.catch)))
-    (lambda (p fn)
-      (catch p (callback fn)))))
+(define (then p fn)
+  ((jmethod "then" p)
+   (callback fn)))
+
+(define (catch p fn)
+  ((jmethod "catch" p)
+   (callback fn)))
 
 (define loggit (native console.log))
 
-(define append-child (native-method document.appendChild))
-(define query-selector (native-method document.querySelector))
-(define create-node
-  (lambda (name)
-    ((native-method document.createElement) (%host-ref document) (jstring name))))
+(define (append-child node child)
+  ((jmethod "appendChild" node)
+   child))
 
-(define create-text-node
-  (lambda (string)
-    ((js-method "createTextNode" window.document)
-     (jstring string))))
+(define (query-selector node selector)
+  ((jmethod "querySelector" node)
+   (jstring selector)))
 
-(define remove-node
-  (lambda (node)
-    ((native-method (%property-ref remove node)) node)))
+(define (create-node name)
+  ((native-method document.createElement) (%host-ref document) (jstring name)))
 
-(define replace (native-method document.replaceChild))
+(define (create-text-node string)
+  ((jmethod "createTextNode" window.document)
+   (jstring string)))
 
-(define attr-set!
-  (lambda (node key value)
-    ((native-method (%property-ref setAttribute node)) node (jstring key) (jstring value))))
+(define (jremove! node)
+  ((jmethod "remove" node)))
 
-(define remove-attr!
-  (lambda (node key)
-    ((native-method (%property-ref removeAttribute node)) node (jstring key))))
+(define jreplace (native-method document.replaceChild))
 
-(define attr-ref
-  (lambda (node key)
-    ((native-method (%property-ref getAttribute node)) node (jstring key))))
+(define (jset!-attr node key value)
+  ((jmethd "setAttribute" node)
+   (jstring key)
+   value))
 
-(define expr->string
-  (lambda (expr)
-    (with-output-to-string (lambda () (write expr)))))
+(define (jremove-attr! node key)
+  ((jmethod "removeAttribute" nde)
+   (jstring key)))
 
-(define string->expr
-  (lambda (text)
-    (with-input-from-string text read)))
+(define (jref-attr node key)
+  ((jmethod "getAttribute" node)
+   node
+   (jstring key)))
 
-(define fetchit
-  (lambda (url data cc)
-    (let ((p ((native (%host-ref fetch))
-              url
-              (if (or (void? data) (void? cc))
-                  (%)
-                  (% "method" "POST" "body" (jstring data))))))
-      (then p (if (void? cc) data cc)))))
+(define (expr->string expr)
+  (with-output-to-string (lambda () (write expr))))
 
-(define send-list
-  (lambda (url lst cc)
-    (fetchit url (with-output-to-string (lambda () (write lst)))
-             (lambda (x)
-               (then ((native-method (%property-ref text x)) x)
-                     (lambda (text)
-                       (with-input-from-string text (o cc read))))))))
+(define (string->expr text)
+  (with-input-from-string text read))
 
-(define fetch-list
-  (lambda (url cc)
-    (fetchit
-     url
-     (lambda (response)
-       (if (= 200 (jref "status" response))
-           ((js-method
-              "then"
-              ((js-method "text" response)))
-            (lambda (text)
-              (with-input-from-string text (o cc read))))
-           (cc #f))))))
+(define (fetchit url data cc)
+  (let ((p ((native (jref "fetch" (jwindow)))
+            url
+            (if (or (void? data) (void? cc))
+                (%)
+                (% "method" "POST" "body" (jstring data))))))
+    (then p (if (void? cc) data cc))))
 
-(define div
-  (lambda (class)
-    (let ((div (create-node "div")))
-      (%property-set! className div (if (void? class) "" class))
-      div)))
+(define (send-list url lst cc)
+  (fetchit url (with-output-to-string (lambda () (write lst)))
+           (lambda (x)
+             (then ((native-method (%property-ref text x)) x)
+                   (lambda (text)
+                     (with-input-from-string text (o cc read)))))))
 
-(define text
-  (lambda (text)
-    (let ((div (div "text")))
-      (%property-set! textContent div (jstring text))
-      div)))
+(define (fetch-list url cc)
+  (fetchit
+   url
+   (lambda (response)
+     (if (= 200 (jref "status" response))
+         ((jmethod
+           "then"
+           ((jmethod "text" response)))
+          (lambda (text)
+            (with-input-from-string text (o cc read))))
+         (cc #f)))))
 
-(define title
-  (lambda (title)
-    (let ((div (text title)))
-      (%property-set! className div "title")
-      div)))
+(define (on* node name native-fn)
+  ((jmethod "addEventListener" node)
+   (jstring name)
+   native-fn))
 
-(define on*
-  (lambda (node name native-fn)
-    ((native-method (%property-ref addEventListener node)) node (jstring name) native-fn)))
+(define (on node name fn)
+  (on* node name (callback fn)))
 
-(define on
-  (lambda (node name fn)
-    (on* node name (callback fn))))
+(define (off node name native-fn)
+  ((jmethod "removeEventListener" node)
+   (jstring name)
+   native-fn))
 
-(define off
-  (lambda (node name native-fn)
-    ((native-method (%property-ref removeEventListener node)) node (jstring name) native-fn)))
+(define (jparent node)
+  (jref "parentNode" node))
 
-(define parent
-  (lambda (node)
-    (%property-ref parentNode node)))
+(define (nth-cdr x list)
+  (if (or (zero? x) (equal? '() list))
+      list
+      (nth-cdr
+       (- x 1)
+       (cdr list))))
 
-(define nth-cdr
-  (lambda (x list)
-    (if (or (zero? x) (equal? '() list))
-        list
-        (nth-cdr (- x 1) (cdr list)))))
+(define (range start end)
+  (define (f x)
+    (if (= x end)
+        '()
+        (cons x (f (+ x 1)))))
+  (f start))
 
-(define range
-  (lambda (start end)
-    (letrec ((f (lambda (x)
-                (if (= x end)
-                    '()
-                    (cons x (f (+ x 1)))))))
-      (f start))))
+(define (fold fn z lst)
+  (if (equal? '() lst)
+      z
+      (fold
+       fn
+       (fn z (car lst))
+       (cdr lst))))
 
-(define fold
-  (lambda (fn z lst)
-    (if (equal? '() lst)
-        z
-        (fold fn (fn z (car lst)) (cdr lst)))))
+(define (remove-if fn list)
+  (reverse
+   (fold
+    (lambda (list item)
+      (if (fn item)
+          list
+          (cons item list)))
+    '()
+    list)))
 
-(define remove-if
-  (lambda (fn list)
-    (reverse (fold (lambda (list item) (if (fn item) list (cons item list))) '() list))))
+(define (remove-if-not fn list)
+  (remove-if (compl fn) list))
 
-(define remove-if-not
-  (lambda (fn list)
-    (remove-if (compl fn) list)))
+(define (replace-assoc key lst value)
+  (cons
+   (list key value)
+   (remove-if
+    (lambda (x) (equal? key (car x)))
+    lst)))
 
-(define replace-assoc
-  (lambda (key lst value)
-    (cons (list key value) (remove-if (lambda (x) (equal? key (car x))) lst))))
+(define (timeout fn delay)
+  ((native (href "setTimeout" (jwindow))) (callback fn) delay))
 
-(define-syntax λ
-  (syntax-rules ()
-    ((λ params . body)
-     (lambda params . body))))
+(define (interval fn delay)
+  ((native (jref "setInterval" (jwindow))) (callback fn) delay))
 
-(define timeout
-  (lambda (fn delay)
-    ((native (%host-ref setTimeout)) (callback fn) delay)))
+(define (jref key object)
+  ((native (%property-ref get (%host-ref Reflect))) object (jstring key)))
 
-(define interval
-  (lambda (fn delay)
-    ((native (%host-ref setInterval)) (callback fn) delay)))
+;; (define jset!
+;;   (lambda (key object value)
+;;     ((native (%property-ref set (%host-ref Reflect))) object (jstring key) value)))
 
-(define jref
-  (lambda (key object)
-    ((native (%property-ref get (%host-ref Reflect))) object (jstring key))))
+(define (jset! key object value)
+  ((native
+    (path '(Reflect set) (jwindow)))
+   object
+   (jstring key)
+   value))
 
-(define jset!
-  (lambda (key object value)
-    ((native (%property-ref set (%host-ref Reflect))) object (jstring key) value)))
+(define (jmethod method object)
+  (lambda args
+    (apply
+     (native-method (jref (jstring method) object))
+     (cons
+      object
+      args))))
 
-(define js-method
-  (lambda (method object)
-    (lambda args (apply (native-method (jref (jstring method) object)) (cons object args)))))
+(define (jwindow)
+  (%host-ref window))
 
-(define js-window
-  (lambda ()
-    (%host-ref window)))
+(define (jdocument)
+  (jref "document" (jwindow)))
+
+(define (path path* object)
+  (if (null? path*)
+      object
+      (path (cdr path*)
+            (jref (symbol->string (car path*))
+                  object))))
+
+(define (jobject->alist object)
+  (map
+   (lambda (key)
+     (cons key (jref key object)))
+   (vector->list
+    ((jmethod "keys" (jref "Object" (jwindow)))
+     object))))
